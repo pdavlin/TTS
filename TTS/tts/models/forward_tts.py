@@ -497,7 +497,7 @@ class ForwardTTS(BaseTTS):
         self,
         x: torch.LongTensor,
         x_lengths: torch.LongTensor,
-        y_lengths: torch.LongTensor,
+        y_lengths: torch.LongTensor, 
         y: torch.FloatTensor = None,
         dr: torch.IntTensor = None,
         pitch: torch.FloatTensor = None,
@@ -555,6 +555,10 @@ class ForwardTTS(BaseTTS):
         if self.args.use_pitch:
             o_pitch_emb, o_pitch, avg_pitch = self._forward_pitch_predictor(o_en, x_mask, pitch, dr)
             o_en = o_en + o_pitch_emb
+
+        # TODO: Conditional LayerNorm goes here?
+
+        # self._conditional_layer_norm(o_en, x_mask)
         # decoder pass
         o_de, attn = self._forward_decoder(
             o_en, dr, x_mask, y_lengths, g=None
