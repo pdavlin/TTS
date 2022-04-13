@@ -3,7 +3,7 @@ import os
 from trainer import Trainer, TrainerArgs
 
 from TTS.config import BaseAudioConfig, BaseDatasetConfig
-from TTS.tts.configs.fast_speech_config import FastSpeechConfig
+from TTS.tts.configs.ada_speech_config import AdaSpeechConfig
 from TTS.tts.datasets import load_tts_samples
 from TTS.tts.models.forward_tts import ForwardTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
@@ -33,8 +33,8 @@ audio_config = BaseAudioConfig(
     preemphasis=0.0,
 )
 
-config = FastSpeechConfig(
-    run_name="fast_speech_ljspeech",
+config = AdaSpeechConfig(
+    run_name="ada_speech_ljspeech",
     audio=audio_config,
     batch_size=32,
     eval_batch_size=16,
@@ -44,7 +44,7 @@ config = FastSpeechConfig(
     compute_f0=False,
     run_eval=True,
     test_delay_epochs=-1,
-    epochs=1000,
+    epochs=100,
     text_cleaner="english_cleaners",
     use_phonemes=True,
     phoneme_language="en-us",
