@@ -44,7 +44,7 @@ config = AdaSpeechConfig(
     compute_f0=False,
     run_eval=True,
     test_delay_epochs=-1,
-    epochs=100,
+    epochs=1000,
     text_cleaner="english_cleaners",
     use_phonemes=True,
     phoneme_language="en-us",
@@ -54,9 +54,10 @@ config = AdaSpeechConfig(
     print_eval=False,
     mixed_precision=False,
     sort_by_audio_len=True,
-    max_seq_len=500000,
+    max_seq_len=100000,
     output_path=output_path,
     datasets=[dataset_config],
+    gradual_training=[[0, 2, 16], [50000, 2, 24]],
 )
 
 # compute alignments

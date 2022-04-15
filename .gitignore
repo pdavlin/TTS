@@ -166,3 +166,7 @@ internal/*
 wandb
 depot/*
 coqui_recipes/*
+
+
+# PD files
+*.pth

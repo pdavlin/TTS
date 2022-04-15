@@ -101,6 +101,11 @@ class AdaSpeechConfig(BaseTTSConfig):
 
         max_seq_len (int):
             Maximum input sequence length to be used at training. Larger values result in more VRAM usage.
+        
+        gradual_training (List[List]):
+            Parameters for the gradual training schedule. It is in the form `[[a, b, c], [d ,e ,f] ..]` where `a` is
+            the step number to start using the rest of the values, `b` is the `r` value and `c` is the batch size.
+            If sets None, no gradual training is used. Defaults to None.
     """
 
     model: str = "fast_speech"
@@ -108,6 +113,7 @@ class AdaSpeechConfig(BaseTTSConfig):
 
     # model specific params
     model_args: ForwardTTSArgs = ForwardTTSArgs(use_pitch=False)
+    gradual_training: List[List[int]] = None
 
     # multi-speaker settings
     num_speakers: int = 0
