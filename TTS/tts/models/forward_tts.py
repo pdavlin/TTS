@@ -141,7 +141,7 @@ class ForwardTTSArgs(Coqpit):
     use_d_vector_file: bool = False
     d_vector_dim: int = None
     d_vector_file: str = None
-    gradual_training=[[0, 2, 16], [50000, 2, 32]],
+    gradual_training=[[0, 2, 16], [50000, 2, 24]],
 
 
 
