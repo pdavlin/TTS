@@ -54,10 +54,10 @@ config = AdaSpeechConfig(
     print_eval=False,
     mixed_precision=False,
     sort_by_audio_len=True,
-    max_seq_len=100000,
+    max_seq_len=500000,
     output_path=output_path,
     datasets=[dataset_config],
-    gradual_training=[[0, 2, 16], [50000, 2, 24]],
+    # gradual_training=[[0, 2, 16], [50000, 2, 24]],
 )
 
 # compute alignments

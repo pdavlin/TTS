@@ -16,7 +16,7 @@ from TTS.tts.utils.helpers import average_over_durations, generate_path, maximum
 from TTS.tts.utils.speakers import SpeakerManager
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.tts.utils.visual import plot_alignment, plot_avg_pitch, plot_spectrogram
-from TTS.utils.training import gradual_training_scheduler
+# from TTS.utils.training import gradual_training_scheduler
 
 
 @dataclass
@@ -141,7 +141,7 @@ class ForwardTTSArgs(Coqpit):
     use_d_vector_file: bool = False
     d_vector_dim: int = None
     d_vector_file: str = None
-    gradual_training=[[0, 2, 16], [50000, 2, 24]],
+    # gradual_training=[[0, 2, 16], [50000, 2, 24]],
 
 
 
@@ -190,7 +190,7 @@ class ForwardTTS(BaseTTS):
         self.use_aligner = self.args.use_aligner
         self.use_pitch = self.args.use_pitch
         self.binary_loss_weight = 0.0
-        self.gradual_training = self.args.gradual_training
+        # self.gradual_training = self.args.gradual_training
 
         self.length_scale = (
             float(self.args.length_scale) if isinstance(self.args.length_scale, int) else self.args.length_scale
@@ -748,10 +748,10 @@ class ForwardTTS(BaseTTS):
         speaker_manager = SpeakerManager.init_from_config(config, samples)
         return ForwardTTS(new_config, ap, tokenizer, speaker_manager)
 
-    def on_epoch_start(self, trainer):
-        print('stink fart')
-        print(trainer.config.batch_size)
-        if self.gradual_training:
-            print('gradual training')
-            _, trainer.config.batch_size = gradual_training_scheduler(trainer.total_steps_done, trainer.config)
-            print(trainer.config.batch_size)
+    # def on_epoch_start(self, trainer):
+    #     print('stink fart')
+    #     print(trainer.config.batch_size)
+    #     if self.gradual_training:
+    #         print('gradual training')
+    #         _, trainer.config.batch_size = gradual_training_scheduler(trainer.total_steps_done, trainer.config)
+    #         print(trainer.config.batch_size)
