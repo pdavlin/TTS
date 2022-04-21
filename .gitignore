@@ -162,3 +162,9 @@ internal/*
 *_pitch.npy
 *_phoneme.npy
 wandb
+
+recipes/ljspeech/ada_speech/ada*
+recipes/ljspeech/fast_pitch/fast*
+recipes/ljspeech/fast_speech/fast*
+recipse/ljspeech/*/config.json
+venv-040/*
