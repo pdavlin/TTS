@@ -103,20 +103,83 @@ def average_over_durations(values, durs):
         - durs: :math:`[B, T_en]`
         - avg: :math:`[B, 1, T_en]`
     """
+    print('values:           ', values.size())
+    print('durs:             ', durs.size())
+    # get cumulative sum at dimension 1 (OK)
     durs_cums_ends = torch.cumsum(durs, dim=1).long()
+    print('durs_cums_ends:   ', durs_cums_ends.size())
+    # pad tensor OK
     durs_cums_starts = torch.nn.functional.pad(durs_cums_ends[:, :-1], (1, 0))
+    print('durs_cums_starts: ', durs_cums_starts.size())
+
     values_nonzero_cums = torch.nn.functional.pad(torch.cumsum(values != 0.0, dim=2), (1, 0))
+    print('values_nonz_cums: ', values_nonzero_cums.size())
     values_cums = torch.nn.functional.pad(torch.cumsum(values, dim=2), (1, 0))
+    print('values_cums:      ', values_cums.size())
 
     bs, l = durs_cums_ends.size()
     n_formants = values.size(1)
     dcs = durs_cums_starts[:, None, :].expand(bs, n_formants, l)
     dce = durs_cums_ends[:, None, :].expand(bs, n_formants, l)
 
+    print('dcs:               ' + str(dcs.size()))
+    print('dce:               ' + str(dce.size()))
+
     values_sums = (torch.gather(values_cums, 2, dce) - torch.gather(values_cums, 2, dcs)).float()
     values_nelems = (torch.gather(values_nonzero_cums, 2, dce) - torch.gather(values_nonzero_cums, 2, dcs)).float()
 
+    print('values_sums:       ' + str(values_sums.size()))
+    print('values_nelems:     ' + str(values_nelems.size()))
+
     avg = torch.where(values_nelems == 0.0, values_nelems, values_sums / values_nelems)
+    print('avg:               ' + str(avg.size()))
+    print('---')
+    return avg
+
+def average_mel_over_duration(values, durs):
+    """Average values over durations.
+
+    Shapes:
+        - values: :math:`[B, 1, T_de]`
+        - durs: :math:`[B, T_en]`
+        - avg: :math:`[B, 1, T_en]`
+    """
+    # print('---')
+    # print('inside avg func (adaspeech)')
+    # print('values:              ', values.size())
+    # print('durs:                ', durs.size())
+    # get cumulative sum at dimension 1 (OK)
+    durs_cums_ends = torch.cumsum(durs, dim=1).long()
+    # print('durs_cums_ends:      ', durs_cums_ends.size())
+    # pad tensor OK
+    durs_cums_starts = torch.nn.functional.pad(durs_cums_ends[:, :-1], (1, 0))
+    # print('durs_cums_starts:    ', durs_cums_starts.size())
+    
+    values_nonzero_cums = torch.nn.functional.pad(torch.cumsum(values != 0.0, dim=2), (1, 0))
+    # print('values_nonzero_cums: ', values_nonzero_cums.size())
+
+    values_cums = torch.nn.functional.pad(torch.cumsum(values, dim=2), (1, 0))
+    # print('values_cums:         ', values_cums.size())
+
+    bs, l = durs_cums_ends.size()
+    n_formants = values.size(1)
+    dcs = durs_cums_starts[:, None, :].expand(bs, n_formants, l)
+    dce = durs_cums_ends[:, None, :].expand(bs, n_formants, l)
+
+    # print('dcs:                  ' + str(dcs.size()))
+    # print('dce:                  ' + str(dce.size()))
+
+    values_sums = (torch.gather(values_cums, 2, dce) - torch.gather(values_cums, 2, dcs)).float()
+    values_nelems = (torch.gather(values_nonzero_cums, 2, dce) - torch.gather(values_nonzero_cums, 2, dcs)).float()
+
+    # print('values_sums:          ' + str(values_sums.size()))
+    # print('values_nelems:        ' + str(values_nelems.size()))
+
+    avg = torch.where(values_nelems == 0.0, values_nelems, values_sums / values_nelems)
+    # print('avg:                  ' + str(avg.size()))
+    # print('---')
+
+
     return avg
 
 

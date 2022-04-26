@@ -40,31 +40,31 @@ class TensorboardLogger(object):
                 traceback.print_exc()
 
     def train_step_stats(self, step, stats):
-        self.dict_to_tb_scalar(f"{self.model_name}_TrainIterStats", stats, step)
+        self.dict_to_tb_scalar(f"TrainIterStats", stats, step)
 
     def train_epoch_stats(self, step, stats):
-        self.dict_to_tb_scalar(f"{self.model_name}_TrainEpochStats", stats, step)
+        self.dict_to_tb_scalar(f"TrainEpochStats", stats, step)
 
     def train_figures(self, step, figures):
-        self.dict_to_tb_figure(f"{self.model_name}_TrainFigures", figures, step)
+        self.dict_to_tb_figure(f"TrainFigures", figures, step)
 
     def train_audios(self, step, audios, sample_rate):
-        self.dict_to_tb_audios(f"{self.model_name}_TrainAudios", audios, step, sample_rate)
+        self.dict_to_tb_audios(f"TrainAudios", audios, step, sample_rate)
 
     def eval_stats(self, step, stats):
-        self.dict_to_tb_scalar(f"{self.model_name}_EvalStats", stats, step)
+        self.dict_to_tb_scalar(f"EvalStats", stats, step)
 
     def eval_figures(self, step, figures):
-        self.dict_to_tb_figure(f"{self.model_name}_EvalFigures", figures, step)
+        self.dict_to_tb_figure(f"EvalFigures", figures, step)
 
     def eval_audios(self, step, audios, sample_rate):
-        self.dict_to_tb_audios(f"{self.model_name}_EvalAudios", audios, step, sample_rate)
+        self.dict_to_tb_audios(f"EvalAudios", audios, step, sample_rate)
 
     def test_audios(self, step, audios, sample_rate):
-        self.dict_to_tb_audios(f"{self.model_name}_TestAudios", audios, step, sample_rate)
+        self.dict_to_tb_audios(f"TestAudios", audios, step, sample_rate)
 
     def test_figures(self, step, figures):
-        self.dict_to_tb_figure(f"{self.model_name}_TestFigures", figures, step)
+        self.dict_to_tb_figure(f"TestFigures", figures, step)
 
     def add_text(self, title, text, step):
         self.writer.add_text(title, text, step)
