@@ -254,22 +254,6 @@ class AdaSpeech(ForwardTTS):
         # encoder pass
         o_en, x_mask, g, x_emb = self._forward_encoder(x, x_mask, g)
 
-        # AdaSpeech
-
-        # Utterance encoder pass
-        # print('---adaspeech---')
-        utterance_vec = self.utterance_encoder(y.transpose(1, 2))
-        # print('utterance_vec:        {}'.format(utterance_vec.size()))
-        o_en = o_en + utterance_vec
-
-        # duration predictor pass
-        if self.args.detach_duration_predictor:
-            o_dr_log = self.duration_predictor(o_en.detach(), x_mask)
-        else:
-            o_dr_log = self.duration_predictor(o_en, x_mask)
-        o_dr = torch.clamp(torch.exp(o_dr_log) - 1, 0, self.max_duration)
-        # generate attn mask from predicted durations
-        o_attn = self.generate_attn(o_dr.squeeze(1), x_mask)
         # aligner
         o_alignment_dur = None
         alignment_soft = None
@@ -286,36 +270,50 @@ class AdaSpeech(ForwardTTS):
         o_pitch = None
         avg_pitch = None
 
-        # print('step count:           {}'.format(self.));
+        # AdaSpeech
+
         avg_mel = average_mel_over_duration(
             y.transpose(1, 2), dr).transpose(1, 2)
         self.stored_average_mel = avg_mel
-        # print('after avg func')
-        # print('y size:               {}'.format(y.size()))
-        # print('avg mel size:         {}'.format(avg_mel.size()))
-        # print('train predictor:      {}'.format(self.train_predictor))
-        # if self.train_predictor == True:
-        # print('attn_dim:             {}'.format(o_attn.size()))
+
         o_phn = self.phoneme_level_encoder(
             avg_mel.transpose(1, 2)).transpose(1, 2)
         o_en = o_en + o_phn
         o_phn_pred = self.phoneme_level_predictor(o_phn.detach())
-        # print('o_en size:            {}'.format(o_en.size()))
-        # print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
 
-        # with torch.no_grad():
-        #     o_phn = self.phoneme_level_encoder(
-        #         avg_mel.transpose(1, 2)).transpose(1, 2)
+        # Utterance encoder pass
+        # print('---adaspeech---')
+        utterance_vec = self.utterance_encoder(y.transpose(1, 2))
+        # print('utterance_vec:        {}'.format(utterance_vec.size()))
+        o_en = o_en + utterance_vec
 
-        # else:
-        #     o_phn = self.phoneme_level_encoder(
-        #         avg_mel.transpose(1, 2)).transpose(1, 2)
-        # print('o_en size:            {}'.format(o_en.size()))
-        # print('o_phn size:           {}'.format(o_phn.size()))
-        # o_phn_emb = self.phoneme_embed(o_phn)
-        # print('o_phn_emb size:       {}'.format(o_phn_emb.size()))
-        # o_en = o_en + o_phn
-        # print('---end adaspeech---')
+        # duration predictor pass
+        if self.args.detach_duration_predictor:
+            o_dr_log = self.duration_predictor(o_en.detach(), x_mask)
+        else:
+            o_dr_log = self.duration_predictor(o_en, x_mask)
+        o_dr = torch.clamp(torch.exp(o_dr_log) - 1, 0, self.max_duration)
+        # generate attn mask from predicted durations
+        o_attn = self.generate_attn(o_dr.squeeze(1), x_mask)
+        # # aligner
+        # o_alignment_dur = None
+        # alignment_soft = None
+        # alignment_logprob = None
+        # alignment_mas = None
+        # if self.use_aligner:
+        #     o_alignment_dur, alignment_soft, alignment_logprob, alignment_mas = self._forward_aligner(
+        #         x_emb, y, x_mask, y_mask
+        #     )
+        #     alignment_soft = alignment_soft.transpose(1, 2)
+        #     alignment_mas = alignment_mas.transpose(1, 2)
+        #     dr = o_alignment_dur
+        # # pitch predictor pass
+        # o_pitch = None
+        # avg_pitch = None
+
+        # print('step count:           {}'.format(self.));
+
+
 
         # decoder pass
         o_de, attn = self._forward_decoder(
