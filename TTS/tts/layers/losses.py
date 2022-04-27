@@ -694,6 +694,9 @@ class ForwardTTSLoss(nn.Module):
         if c.model_args.use_pitch:
             self.pitch_loss = MSELossMasked(False)
             self.pitch_loss_alpha = c.pitch_loss_alpha
+        
+        if c.model_args.use_adaspeech:
+            self.adaspeech_loss = MSELossMasked(False)
 
         if c.use_ssim_loss:
             self.ssim = SSIMLoss() if c.use_ssim_loss else None
@@ -721,6 +724,8 @@ class ForwardTTSLoss(nn.Module):
         pitch_output,
         pitch_target,
         input_lens,
+        phoneme_encoder_output,
+        phoneme_predictor_output,
         alignment_logprob=None,
         alignment_hard=None,
         alignment_soft=None,
@@ -747,6 +752,11 @@ class ForwardTTSLoss(nn.Module):
             pitch_loss = self.pitch_loss(pitch_output.transpose(1, 2), pitch_target.transpose(1, 2), input_lens)
             loss = loss + self.pitch_loss_alpha * pitch_loss
             return_dict["loss_pitch"] = self.pitch_loss_alpha * pitch_loss
+        
+        if hasattr(self, "adaspeech_loss") and self.adaspeech_loss_alpha > 0:
+            adaspeech_loss = self.adaspeech_loss(phoneme_encoder_output, phoneme_predictor_output, decoder_output_lens)
+            loss = loss + self.adaspeech_loss_alpha * adaspeech_loss
+            return_dict["loss_adaspeech"] = self.adaspeech_loss_alpha * adaspeech_loss
 
         if hasattr(self, "aligner_loss") and self.aligner_loss_alpha > 0:
             aligner_loss = self.aligner_loss(alignment_logprob, input_lens, decoder_output_lens)

@@ -334,7 +334,8 @@ class AdaSpeech(ForwardTTS):
             "x_mask": x_mask,
             "y_mask": y_mask,
             "avg_mel": avg_mel,
-            "utterance_vec": utterance_vec
+            "o_phn": o_phn,
+            "o_phn_pred": o_phn_pred
         }
         return outputs
 
@@ -359,13 +360,16 @@ class AdaSpeech(ForwardTTS):
         o_en, x_mask, g, _ = self._forward_encoder(x, x_mask, g)
 
         # AdaSpeech
-        # utterance encoder pass
+        
         y = self._set_utterance_input(aux_input)
+
+        # phoneme predictor pass
         o_phn_pred = self.phoneme_level_predictor(o_en)
         print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
         print('o_en size:            {}'.format(o_en.size()))
         o_en = o_en + o_phn_pred.transpose(1,2)
 
+        # utterance encoder pass
         utterance_vec = self.utterance_encoder(y)
         o_en = o_en + utterance_vec
 
@@ -422,6 +426,8 @@ class AdaSpeech(ForwardTTS):
                 alignment_logprob=outputs["alignment_logprob"] if self.use_aligner else None,
                 alignment_soft=outputs["alignment_soft"] if self.use_binary_alignment_loss else None,
                 alignment_hard=outputs["alignment_mas"] if self.use_binary_alignment_loss else None,
+                phoneme_encoder_output=outputs["o_phn"],
+                phoneme_predictor_output=outputs["o_phn_pred"]
             )
             # compute duration error
             durations_pred = outputs["durations"]
@@ -464,6 +470,8 @@ class AdaSpeech(ForwardTTS):
                 alignment_logprob=outputs["alignment_logprob"] if self.use_aligner else None,
                 alignment_soft=outputs["alignment_soft"] if self.use_binary_alignment_loss else None,
                 alignment_hard=outputs["alignment_mas"] if self.use_binary_alignment_loss else None,
+                phoneme_encoder_output=outputs["o_phn"],
+                phoneme_predictor_output=outputs["o_phn_pred"]
             )
             # compute duration error
             durations_pred = outputs["durations"]
@@ -552,6 +560,12 @@ class AdaSpeech(ForwardTTS):
             '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs')
         # print(files)
         return '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs' + random.choice(files)
+
+    def get_criterion(self):
+        from TTS.tts.layers.losses import ForwardTTSLoss  # pylint: disable=import-outside-toplevel
+
+        return ForwardTTSLoss(self.config)
+
     #############################
     # CALLBACKS
     #############################
