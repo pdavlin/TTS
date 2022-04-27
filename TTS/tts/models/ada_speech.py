@@ -294,22 +294,27 @@ class AdaSpeech(ForwardTTS):
         # print('y size:               {}'.format(y.size()))
         # print('avg mel size:         {}'.format(avg_mel.size()))
         # print('train predictor:      {}'.format(self.train_predictor))
-        if self.train_predictor == True:
-            print('attn_dim:             {}'.format(o_attn.size()))
-            phn = self.phoneme_level_predictor(o_en)
+        # if self.train_predictor == True:
+        # print('attn_dim:             {}'.format(o_attn.size()))
+        o_phn = self.phoneme_level_encoder(
+            avg_mel.transpose(1, 2)).transpose(1, 2)
+        o_en = o_en + o_phn
+        o_phn_pred = self.phoneme_level_predictor(o_phn.detach())
+        # print('o_en size:            {}'.format(o_en.size()))
+        # print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
 
-            with torch.no_grad():
-                o_phn = self.phoneme_level_encoder(
-                    avg_mel.transpose(1, 2)).transpose(1, 2)
+        # with torch.no_grad():
+        #     o_phn = self.phoneme_level_encoder(
+        #         avg_mel.transpose(1, 2)).transpose(1, 2)
 
-        else:
-            o_phn = self.phoneme_level_encoder(
-                avg_mel.transpose(1, 2)).transpose(1, 2)
-            # print('o_en size:            {}'.format(o_en.size()))
-            # print('o_phn size:           {}'.format(o_phn.size()))
-            # o_phn_emb = self.phoneme_embed(o_phn)
-            # print('o_phn_emb size:       {}'.format(o_phn_emb.size()))
-            o_en = o_en + o_phn
+        # else:
+        #     o_phn = self.phoneme_level_encoder(
+        #         avg_mel.transpose(1, 2)).transpose(1, 2)
+        # print('o_en size:            {}'.format(o_en.size()))
+        # print('o_phn size:           {}'.format(o_phn.size()))
+        # o_phn_emb = self.phoneme_embed(o_phn)
+        # print('o_phn_emb size:       {}'.format(o_phn_emb.size()))
+        # o_en = o_en + o_phn
         # print('---end adaspeech---')
 
         # decoder pass
@@ -357,12 +362,6 @@ class AdaSpeech(ForwardTTS):
 
         y = self._set_utterance_input(aux_input)
 
-        # utterance encoder pass
-        # TODO: figure out how to pass a stored value?
-        utterance_vec = self.utterance_encoder(y)
-        # o_en = o_en + self.stored_utterance
-        o_en = o_en + utterance_vec
-
         # duration predictor pass
         o_dr_log = self.duration_predictor(o_en, x_mask)
         o_dr = self.format_durations(o_dr_log, x_mask).squeeze(1)
@@ -370,28 +369,15 @@ class AdaSpeech(ForwardTTS):
         # pitch predictor pass
         o_pitch = None  # TODO: How do I safely delete this?
 
-        # TODO possibly also need durations?
-        avg_mel = average_mel_over_duration(
-            y, o_dr)
-        # phenome predictor pass
-        # TODO: figure out how to pass a stored value for avg_mel?
-        # TODO: fix shape for predictor
-        # if self.train_predictor:
-        #     o_phn_pred = self.phoneme_level_predictor(o_en)
-        # else:
-        #     o_phn = self.phoneme_level_encoder(
-        #     avg_mel.transpose(1, 2)).transpose(1, 2)
-        #     o_en = o_en + o_phn
-        o_phn = self.phoneme_level_encoder(
-            avg_mel)
-        o_en = o_en + o_phn.transpose(1, 2)
+        # utterance encoder pass
+        # TODO: figure out how to pass a stored value?
+        utterance_vec = self.utterance_encoder(y)
+        o_en = o_en + utterance_vec
+
         o_phn_pred = self.phoneme_level_predictor(o_en)
-        # o_phn_transp = self.phoneme_level_predictor(o_en.transpose(1,2))
-        print('o_phn size:           {}'.format(o_phn.size()))
         print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
-        # print('o_phn_transp size:    {}'.format(o_phn_transp.size()))
         print('o_en size:            {}'.format(o_en.size()))
-        # o_en = o_en + o_phn
+        o_en = o_en + o_phn_pred.transpose(1,2)
 
         # decoder pass
         o_de, attn = self._forward_decoder(
@@ -504,6 +490,9 @@ class AdaSpeech(ForwardTTS):
         test_audios = {}
         test_figures = {}
         test_sentences = self.config.test_sentences
+        print(test_sentences)
+        testvar = self._get_random_speakerfile()
+        print(testvar)
         # TODO: This isn't a sustainable solution (if it works at all)
         style_wav = os.path.abspath(
             '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs/LJ001-0001.wav')
@@ -559,8 +548,11 @@ class AdaSpeech(ForwardTTS):
         return aux_inputs
 
     def _get_random_speakerfile(traindir: str):
-
-        return random.choice(os.listdir(traindir))
+        print(' | > Getting random speaker file.')
+        files = os.listdir(
+            '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs')
+        # print(files)
+        return '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs' + random.choice(files)
     #############################
     # CALLBACKS
     #############################
