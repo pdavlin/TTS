@@ -107,7 +107,7 @@ class AdaSpeechConfig(BaseTTSConfig):
     base_model: str = "ada_speech"
 
     # model specific params
-    model_args: AdaSpeechArgs = AdaSpeechArgs(predictor_train_epoch=401)
+    model_args: AdaSpeechArgs = AdaSpeechArgs(use_adaspeech=True, predictor_train_epoch=401)
 
     # multi-speaker settings
     speakers_file: str = None

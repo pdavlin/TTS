@@ -154,6 +154,7 @@ class AdaSpeechArgs(Coqpit):
 
     stored_average_mel = None
     stored_phoneme_pred = None
+    use_adaspeech = True
 
 
 class AdaSpeech(ForwardTTS):
@@ -279,7 +280,7 @@ class AdaSpeech(ForwardTTS):
         o_phn = self.phoneme_level_encoder(
             avg_mel.transpose(1, 2)).transpose(1, 2)
         o_en = o_en + o_phn
-        o_phn_pred = self.phoneme_level_predictor(o_phn.detach())
+        o_phn_pred = self.phoneme_level_predictor(o_phn.detach()).transpose(1,2)
 
         # Utterance encoder pass
         # print('---adaspeech---')

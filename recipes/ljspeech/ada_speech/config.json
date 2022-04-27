@@ -119,7 +119,7 @@
         "hidden_channels": 384,
         "use_aligner": true,
         "use_pitch": false,
-        "use_adaspeech": false,
+        "use_adaspeech": true,
         "pitch_predictor_hidden_channels": 256,
         "pitch_predictor_kernel_size": 3,
         "pitch_predictor_dropout_p": 0.1,

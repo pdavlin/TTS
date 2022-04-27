@@ -270,6 +270,16 @@ class ForwardSumLoss(nn.Module):
         return total_loss
 
 
+class AdaSpeechLoss(nn.Module):
+    def __init__(self, offset=1.0):
+        super(AdaSpeechLoss, self).__init__()
+        self.criterion = functional.mse_loss
+        self.offset = offset
+
+    def forward(self, outputs, targets):
+        loss = self.criterion(outputs, targets)
+        return loss
+
 ########################
 # MODEL LOSS LAYERS
 ########################
@@ -671,6 +681,7 @@ class ForwardTTSLoss(nn.Module):
 
     def __init__(self, c):
         super().__init__()
+        print('initializing ForwardTTSLoss')
         if c.spec_loss_type == "mse":
             self.spec_loss = MSELossMasked(False)
         elif c.spec_loss_type == "l1":
@@ -696,7 +707,8 @@ class ForwardTTSLoss(nn.Module):
             self.pitch_loss_alpha = c.pitch_loss_alpha
         
         if c.model_args.use_adaspeech:
-            self.adaspeech_loss = MSELossMasked(False)
+            print('adding adaspeech loss fn')
+            self.adaspeech_loss = AdaSpeechLoss()
 
         if c.use_ssim_loss:
             self.ssim = SSIMLoss() if c.use_ssim_loss else None
@@ -754,9 +766,10 @@ class ForwardTTSLoss(nn.Module):
             return_dict["loss_pitch"] = self.pitch_loss_alpha * pitch_loss
         
         if hasattr(self, "adaspeech_loss"):
-            adaspeech_loss = self.adaspeech_loss(phoneme_encoder_output, phoneme_predictor_output, decoder_output_lens)
+            adaspeech_loss = self.adaspeech_loss(phoneme_encoder_output, phoneme_predictor_output)
+            print("adaspeech_loss: ", adaspeech_loss)
             loss = loss + adaspeech_loss
-            return_dict["loss_adaspeech"] = self.adaspeech_loss
+            return_dict["acoustic_encoder"] = adaspeech_loss
 
         if hasattr(self, "aligner_loss") and self.aligner_loss_alpha > 0:
             aligner_loss = self.aligner_loss(alignment_logprob, input_lens, decoder_output_lens)
