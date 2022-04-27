@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+import os
+import random
 from typing import Dict, Tuple
 
 import torch
@@ -7,7 +9,7 @@ from torch import nn
 from torch.cuda.amp.autocast_mode import autocast
 
 
-from TTS.tts.layers.feed_forward.acoustic_encoder import AcousticPredictorLoss, PhonemeLevelEncoder, UtteranceEncoder
+from TTS.tts.layers.feed_forward.acoustic_encoder import PhonemeLevelEncoder, UtteranceEncoder
 from TTS.tts.layers.feed_forward.decoder import Decoder
 from TTS.tts.layers.feed_forward.encoder import Encoder
 from TTS.tts.layers.generic.aligner import AlignmentNetwork
@@ -151,7 +153,6 @@ class AdaSpeechArgs(Coqpit):
     predictor_train_epoch: int = 400
 
     stored_average_mel = None
-    stored_utterance = None
     stored_phoneme_pred = None
 
 
@@ -213,7 +214,6 @@ class AdaSpeech(ForwardTTS):
             idim=self.args.hidden_channels, n_chans=self.args.hidden_channels)
         self.train_predictor = False
 
-
     def forward(
         self,
         x: torch.LongTensor,
@@ -259,7 +259,6 @@ class AdaSpeech(ForwardTTS):
         # Utterance encoder pass
         # print('---adaspeech---')
         utterance_vec = self.utterance_encoder(y.transpose(1, 2))
-        self.stored_utterance = utterance_vec
         # print('utterance_vec:        {}'.format(utterance_vec.size()))
         o_en = o_en + utterance_vec
 
@@ -287,7 +286,6 @@ class AdaSpeech(ForwardTTS):
         o_pitch = None
         avg_pitch = None
 
-        # First 40,000 steps: only encode TODO: add a conditional here
         # print('step count:           {}'.format(self.));
         avg_mel = average_mel_over_duration(
             y.transpose(1, 2), dr).transpose(1, 2)
@@ -303,7 +301,7 @@ class AdaSpeech(ForwardTTS):
             with torch.no_grad():
                 o_phn = self.phoneme_level_encoder(
                     avg_mel.transpose(1, 2)).transpose(1, 2)
-                
+
         else:
             o_phn = self.phoneme_level_encoder(
                 avg_mel.transpose(1, 2)).transpose(1, 2)
@@ -357,10 +355,13 @@ class AdaSpeech(ForwardTTS):
         # encoder pass
         o_en, x_mask, g, _ = self._forward_encoder(x, x_mask, g)
 
+        y = self._set_utterance_input(aux_input)
+
         # utterance encoder pass
         # TODO: figure out how to pass a stored value?
+        utterance_vec = self.utterance_encoder(y)
         # o_en = o_en + self.stored_utterance
-        # o_en = o_en + utterance_vec
+        o_en = o_en + utterance_vec
 
         # duration predictor pass
         o_dr_log = self.duration_predictor(o_en, x_mask)
@@ -369,19 +370,27 @@ class AdaSpeech(ForwardTTS):
         # pitch predictor pass
         o_pitch = None  # TODO: How do I safely delete this?
 
+        # TODO possibly also need durations?
+        avg_mel = average_mel_over_duration(
+            y, o_dr)
         # phenome predictor pass
         # TODO: figure out how to pass a stored value for avg_mel?
         # TODO: fix shape for predictor
         # if self.train_predictor:
-        #     o_phn = self.phoneme_level_predictor(o_en)
+        #     o_phn_pred = self.phoneme_level_predictor(o_en)
         # else:
         #     o_phn = self.phoneme_level_encoder(
-        #         self.stored_average_mel.transpose(1, 2)).transpose(1, 2)
+        #     avg_mel.transpose(1, 2)).transpose(1, 2)
         #     o_en = o_en + o_phn
+        o_phn = self.phoneme_level_encoder(
+            avg_mel)
+        o_en = o_en + o_phn.transpose(1, 2)
+        o_phn_pred = self.phoneme_level_predictor(o_en)
         # o_phn_transp = self.phoneme_level_predictor(o_en.transpose(1,2))
-        # print('o_phn size:           {}'.format(o_phn.size()))
+        print('o_phn size:           {}'.format(o_phn.size()))
+        print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
         # print('o_phn_transp size:    {}'.format(o_phn_transp.size()))
-        # print('o_en size:            {}'.format(o_en.size()))
+        print('o_en size:            {}'.format(o_en.size()))
         # o_en = o_en + o_phn
 
         # decoder pass
@@ -394,6 +403,7 @@ class AdaSpeech(ForwardTTS):
             "durations_log": o_dr_log,
         }
         return outputs
+
     def train_step(self, batch: dict, criterion: nn.Module):
         text_input = batch["text_input"]
         text_lengths = batch["text_lengths"]
@@ -430,7 +440,8 @@ class AdaSpeech(ForwardTTS):
             )
             # compute duration error
             durations_pred = outputs["durations"]
-            duration_error = torch.abs(durations - durations_pred).sum() / text_lengths.sum()
+            duration_error = torch.abs(
+                durations - durations_pred).sum() / text_lengths.sum()
             loss_dict["duration_error"] = duration_error
 
         return outputs, loss_dict
@@ -471,7 +482,8 @@ class AdaSpeech(ForwardTTS):
             )
             # compute duration error
             durations_pred = outputs["durations"]
-            duration_error = torch.abs(durations - durations_pred).sum() / text_lengths.sum()
+            duration_error = torch.abs(
+                durations - durations_pred).sum() / text_lengths.sum()
             loss_dict["duration_error"] = duration_error
 
         return outputs, loss_dict
@@ -492,6 +504,12 @@ class AdaSpeech(ForwardTTS):
         test_audios = {}
         test_figures = {}
         test_sentences = self.config.test_sentences
+        # TODO: This isn't a sustainable solution (if it works at all)
+        style_wav = os.path.abspath(
+            '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs/LJ001-0001.wav')
+        style_mel = torch.FloatTensor(ap.melspectrogram(
+            ap.load_wav(style_wav, sr=ap.sample_rate))).unsqueeze(0)
+        style_mel_in = style_mel.cuda()
         aux_inputs = self._get_test_aux_input()
         for idx, sen in enumerate(test_sentences):
             outputs_dict = synthesis(
@@ -502,7 +520,7 @@ class AdaSpeech(ForwardTTS):
                 ap,
                 speaker_id=aux_inputs["speaker_id"],
                 d_vector=aux_inputs["d_vector"],
-                style_wav=aux_inputs["style_wav"],
+                style_wav=style_wav,
                 enable_eos_bos_chars=self.config.enable_eos_bos_chars,
                 use_griffin_lim=True,
                 do_trim_silence=False,
@@ -515,7 +533,34 @@ class AdaSpeech(ForwardTTS):
                 outputs_dict["outputs"]["alignments"], output_fig=False
             )
         return test_figures, test_audios
-    
+
+    def _set_utterance_input(self, aux_input: Dict):
+        print(" | > Setting utterance input.")
+        style_mel = aux_input.get("style_mel", None)
+        return style_mel
+
+    def _get_test_aux_input(
+        self,
+    ) -> Dict:
+
+        d_vector = None
+        if self.config.use_d_vector_file:
+            d_vector = [self.speaker_manager.d_vectors[name]["embedding"]
+                        for name in self.speaker_manager.d_vectors]
+            d_vector = (random.sample(sorted(d_vector), 1),)
+
+        aux_inputs = {
+            "speaker_id": None
+            if not self.config.use_speaker_embedding
+            else random.sample(sorted(self.speaker_manager.speaker_ids.values()), 1),
+            "d_vector": d_vector,
+            "style_wav": None,  # TODO: handle GST style input
+        }
+        return aux_inputs
+
+    def _get_random_speakerfile(traindir: str):
+
+        return random.choice(os.listdir(traindir))
     #############################
     # CALLBACKS
     #############################

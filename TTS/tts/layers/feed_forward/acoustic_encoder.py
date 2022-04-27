@@ -32,7 +32,7 @@ class UtteranceEncoder(nn.Module):
                 padding=(kernel_size - 1) // 2, # 2
             ),
             torch.nn.ReLU(),
-            LayerNorm(n_chans), # 
+            LayerNorm(n_chans), 
             torch.nn.Dropout(dropout_rate),
         )
 
