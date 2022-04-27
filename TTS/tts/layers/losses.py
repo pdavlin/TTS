@@ -753,10 +753,10 @@ class ForwardTTSLoss(nn.Module):
             loss = loss + self.pitch_loss_alpha * pitch_loss
             return_dict["loss_pitch"] = self.pitch_loss_alpha * pitch_loss
         
-        if hasattr(self, "adaspeech_loss") and self.adaspeech_loss_alpha > 0:
+        if hasattr(self, "adaspeech_loss"):
             adaspeech_loss = self.adaspeech_loss(phoneme_encoder_output, phoneme_predictor_output, decoder_output_lens)
-            loss = loss + self.adaspeech_loss_alpha * adaspeech_loss
-            return_dict["loss_adaspeech"] = self.adaspeech_loss_alpha * adaspeech_loss
+            loss = loss + adaspeech_loss
+            return_dict["loss_adaspeech"] = self.adaspeech_loss
 
         if hasattr(self, "aligner_loss") and self.aligner_loss_alpha > 0:
             aligner_loss = self.aligner_loss(alignment_logprob, input_lens, decoder_output_lens)
