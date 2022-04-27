@@ -280,7 +280,7 @@ class AdaSpeech(ForwardTTS):
         o_phn = self.phoneme_level_encoder(
             avg_mel.transpose(1, 2)).transpose(1, 2)
         o_en = o_en + o_phn
-        o_phn_pred = self.phoneme_level_predictor(o_phn.detach()).transpose(1,2)
+        o_phn_pred = self.phoneme_level_predictor(o_en.detach()).transpose(1,2)
 
         # Utterance encoder pass
         # print('---adaspeech---')
@@ -389,7 +389,7 @@ class AdaSpeech(ForwardTTS):
         outputs = {
             "model_outputs": o_de,
             "alignments": attn,
-            "pitch": o_pitch,
+            "pitch": o_pitch, # TODO: How do I safely delete this?
             "durations_log": o_dr_log,
         }
         return outputs
@@ -502,8 +502,7 @@ class AdaSpeech(ForwardTTS):
         testvar = self._get_random_speakerfile()
         print(testvar)
         # TODO: This isn't a sustainable solution (if it works at all)
-        style_wav = os.path.abspath(
-            '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs/LJ001-0001.wav')
+        style_wav = os.path.abspath(testvar)
         style_mel = torch.FloatTensor(ap.melspectrogram(
             ap.load_wav(style_wav, sr=ap.sample_rate))).unsqueeze(0)
         style_mel_in = style_mel.cuda()
@@ -560,7 +559,7 @@ class AdaSpeech(ForwardTTS):
         files = os.listdir(
             '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs')
         # print(files)
-        return '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs' + random.choice(files)
+        return '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs/' + random.choice(files)
 
     def get_criterion(self):
         from TTS.tts.layers.losses import ForwardTTSLoss  # pylint: disable=import-outside-toplevel

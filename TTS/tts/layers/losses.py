@@ -766,8 +766,9 @@ class ForwardTTSLoss(nn.Module):
             return_dict["loss_pitch"] = self.pitch_loss_alpha * pitch_loss
         
         if hasattr(self, "adaspeech_loss"):
-            adaspeech_loss = self.adaspeech_loss(phoneme_encoder_output, phoneme_predictor_output)
-            print("adaspeech_loss: ", adaspeech_loss)
+            # adaspeech_loss = self.adaspeech_loss(phoneme_encoder_output, phoneme_predictor_output)
+            adaspeech_loss = self.adaspeech_loss(phoneme_predictor_output, phoneme_encoder_output)
+            # print("adaspeech_loss: ", adaspeech_loss)
             loss = loss + adaspeech_loss
             return_dict["acoustic_encoder"] = adaspeech_loss
 
