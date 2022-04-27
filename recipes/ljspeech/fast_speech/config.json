@@ -1,8 +1,8 @@
 {
-    "model": "ada_speech",
-    "run_name": "ada_speech_ljspeech",
+    "model": "fast_speech",
+    "run_name": "fast_speech_ljspeech",
     "run_description": "",
-    "epochs": 150,
+    "epochs": 1000,
     "batch_size": 32,
     "eval_batch_size": 16,
     "mixed_precision": false,
@@ -24,7 +24,7 @@
     "num_loader_workers": 8,
     "num_eval_loader_workers": 4,
     "use_noise_augment": false,
-    "output_path": "/home/pdavlin/school/TTS/recipes/ljspeech/ada_speech",
+    "output_path": "/home/pdavlin/school/TTS/recipes/ljspeech/fast_speech",
     "distributed_backend": "nccl",
     "distributed_url": "tcp://localhost:54321",
     "audio": {
@@ -64,7 +64,7 @@
     "text_cleaner": "english_cleaners",
     "enable_eos_bos_chars": false,
     "test_sentences_file": "",
-    "phoneme_cache_path": "/home/pdavlin/school/TTS/recipes/ljspeech/ada_speech/phoneme_cache",
+    "phoneme_cache_path": "/home/pdavlin/school/TTS/recipes/ljspeech/fast_speech/phoneme_cache",
     "characters": {
         "pad": "_",
         "eos": "~",
@@ -85,7 +85,7 @@
     "datasets": [
         {
             "name": "ljspeech",
-            "path": "/home/pdavlin/school/TTS/recipes/ljspeech/ada_speech/../LJSpeech-1.1/",
+            "path": "/home/pdavlin/school/TTS/recipes/ljspeech/fast_speech/../LJSpeech-1.1/",
             "meta_file_train": "metadata.csv",
             "ununsed_speakers": null,
             "meta_file_val": "",
@@ -109,17 +109,15 @@
         "Be a voice, not an echo.",
         "I'm sorry Dave. I'm afraid I can't do that.",
         "This cake is great. It's so delicious and moist.",
-        "Prior to November 22, 1963.",
-        "Casey is the original dirty bag boy."
+        "Prior to November 22, 1963."
     ],
-    "base_model": "ada_speech",
+    "base_model": "forward_tts",
     "model_args": {
         "num_chars": 130,
         "out_channels": 80,
         "hidden_channels": 384,
         "use_aligner": true,
         "use_pitch": false,
-        "use_adaspeech": false,
         "pitch_predictor_hidden_channels": 256,
         "pitch_predictor_kernel_size": 3,
         "pitch_predictor_dropout_p": 0.1,
@@ -151,8 +149,7 @@
         "speakers_file": null,
         "use_d_vector_file": false,
         "d_vector_dim": null,
-        "d_vector_file": null,
-        "predictor_train_epoch": 401
+        "d_vector_file": null
     },
     "speakers_file": null,
     "use_speaker_embedding": false,

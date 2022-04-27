@@ -358,7 +358,16 @@ class AdaSpeech(ForwardTTS):
         # encoder pass
         o_en, x_mask, g, _ = self._forward_encoder(x, x_mask, g)
 
+        # AdaSpeech
+        # utterance encoder pass
         y = self._set_utterance_input(aux_input)
+        o_phn_pred = self.phoneme_level_predictor(o_en)
+        print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
+        print('o_en size:            {}'.format(o_en.size()))
+        o_en = o_en + o_phn_pred.transpose(1,2)
+
+        utterance_vec = self.utterance_encoder(y)
+        o_en = o_en + utterance_vec
 
         # duration predictor pass
         o_dr_log = self.duration_predictor(o_en, x_mask)
@@ -367,15 +376,7 @@ class AdaSpeech(ForwardTTS):
         # pitch predictor pass
         o_pitch = None  # TODO: How do I safely delete this?
 
-        # utterance encoder pass
-        # TODO: figure out how to pass a stored value?
-        utterance_vec = self.utterance_encoder(y)
-        o_en = o_en + utterance_vec
 
-        o_phn_pred = self.phoneme_level_predictor(o_en)
-        print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
-        print('o_en size:            {}'.format(o_en.size()))
-        o_en = o_en + o_phn_pred.transpose(1,2)
 
         # decoder pass
         o_de, attn = self._forward_decoder(

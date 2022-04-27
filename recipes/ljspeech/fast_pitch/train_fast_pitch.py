@@ -1,5 +1,9 @@
 import os
 
+import torch
+torch.cuda.is_available = lambda : False
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 from TTS.config.shared_configs import BaseAudioConfig, BaseDatasetConfig
 from TTS.trainer import Trainer, TrainingArgs
 from TTS.tts.configs.fast_pitch_config import FastPitchConfig

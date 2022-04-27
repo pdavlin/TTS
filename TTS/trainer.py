@@ -912,7 +912,6 @@ class Trainer:
             if self.config.run_eval
             else None
         )
-
         self.model.eval()
         self.c_logger.print_eval_start()
         loader_start_time = time.time()

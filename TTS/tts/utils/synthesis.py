@@ -250,7 +250,10 @@ def synthesis(
     # GST processing
     style_mel = None
     custom_symbols = None
-    if CONFIG.has("gst") and CONFIG.gst and style_wav is not None:
+    # TODO: THIS IS A HACK AND WILL POSSIBLY BE A MESS IF NOT ADDRESSED
+    # ORIGINAL LINE BELOW
+    # if CONFIG.has("gst") and CONFIG.gst and style_wav is not None:
+    if style_wav is not None:
         if isinstance(style_wav, dict):
             style_mel = style_wav
         else:

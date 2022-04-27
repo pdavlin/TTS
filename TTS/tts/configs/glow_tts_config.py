@@ -147,7 +147,7 @@ class GlowTTSConfig(BaseTTSConfig):
     data_dep_init_steps: int = 10
 
     # inference params
-    style_wav_for_test: str = None
+    style_wav_for_test: str = "../LJSpeech-1.1/wavs/LJ001-0001.wav"
     inference_noise_scale: float = 0.0
     length_scale: float = 1.0
 

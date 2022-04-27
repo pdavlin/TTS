@@ -1,8 +1,8 @@
 {
-    "model": "ada_speech",
-    "run_name": "ada_speech_ljspeech",
+    "model": "fast_pitch",
+    "run_name": "fast_pitch_ljspeech",
     "run_description": "",
-    "epochs": 150,
+    "epochs": 1000,
     "batch_size": 32,
     "eval_batch_size": 16,
     "mixed_precision": false,
@@ -24,7 +24,7 @@
     "num_loader_workers": 8,
     "num_eval_loader_workers": 4,
     "use_noise_augment": false,
-    "output_path": "/home/pdavlin/school/TTS/recipes/ljspeech/ada_speech",
+    "output_path": "/home/pdavlin/school/TTS/recipes/ljspeech/fast_pitch",
     "distributed_backend": "nccl",
     "distributed_url": "tcp://localhost:54321",
     "audio": {
@@ -64,7 +64,7 @@
     "text_cleaner": "english_cleaners",
     "enable_eos_bos_chars": false,
     "test_sentences_file": "",
-    "phoneme_cache_path": "/home/pdavlin/school/TTS/recipes/ljspeech/ada_speech/phoneme_cache",
+    "phoneme_cache_path": "/home/pdavlin/school/TTS/recipes/ljspeech/fast_pitch/phoneme_cache",
     "characters": {
         "pad": "_",
         "eos": "~",
@@ -79,13 +79,13 @@
     "sort_by_audio_len": true,
     "min_seq_len": 13,
     "max_seq_len": 500000,
-    "compute_f0": false,
+    "compute_f0": true,
     "compute_linear_spec": false,
     "add_blank": false,
     "datasets": [
         {
             "name": "ljspeech",
-            "path": "/home/pdavlin/school/TTS/recipes/ljspeech/ada_speech/../LJSpeech-1.1/",
+            "path": "/home/pdavlin/school/TTS/recipes/ljspeech/fast_pitch/../LJSpeech-1.1/",
             "meta_file_train": "metadata.csv",
             "ununsed_speakers": null,
             "meta_file_val": "",
@@ -109,16 +109,15 @@
         "Be a voice, not an echo.",
         "I'm sorry Dave. I'm afraid I can't do that.",
         "This cake is great. It's so delicious and moist.",
-        "Prior to November 22, 1963.",
-        "Casey is the original dirty bag boy."
+        "Prior to November 22, 1963."
     ],
-    "base_model": "ada_speech",
+    "base_model": "forward_tts",
     "model_args": {
         "num_chars": 130,
         "out_channels": 80,
         "hidden_channels": 384,
         "use_aligner": true,
-        "use_pitch": false,
+        "use_pitch": true,
         "use_adaspeech": false,
         "pitch_predictor_hidden_channels": 256,
         "pitch_predictor_kernel_size": 3,
@@ -151,9 +150,9 @@
         "speakers_file": null,
         "use_d_vector_file": false,
         "d_vector_dim": null,
-        "d_vector_file": null,
-        "predictor_train_epoch": 401
+        "d_vector_file": null
     },
+    "num_speakers": 0,
     "speakers_file": null,
     "use_speaker_embedding": false,
     "use_d_vector_file": false,
@@ -167,10 +166,10 @@
     "ssim_loss_alpha": 1.0,
     "dur_loss_alpha": 1.0,
     "spec_loss_alpha": 1.0,
-    "pitch_loss_alpha": 0.0,
+    "pitch_loss_alpha": 1.0,
     "aligner_loss_alpha": 1.0,
     "binary_align_loss_alpha": 1.0,
     "binary_align_loss_start_step": 20000,
     "r": 1,
-    "f0_cache_path": null
+    "f0_cache_path": "/home/pdavlin/school/TTS/recipes/ljspeech/fast_pitch/f0_cache"
 }
