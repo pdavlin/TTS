@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 import os
 import random
 from typing import Dict, Tuple
+from glob import glob
 
 import torch
 from coqpit import Coqpit
@@ -9,7 +10,7 @@ from torch import nn
 from torch.cuda.amp.autocast_mode import autocast
 
 
-from TTS.tts.layers.feed_forward.acoustic_encoder import PhonemeLevelEncoder, PhonemeLevelPredictor, UtteranceEncoder
+from TTS.tts.layers.feed_forward.acoustic_encoder import PhonemeLevelEncoder, UtteranceEncoder
 from TTS.tts.layers.feed_forward.decoder import Decoder
 from TTS.tts.layers.feed_forward.encoder import Encoder
 from TTS.tts.layers.generic.aligner import AlignmentNetwork
@@ -157,8 +158,7 @@ class AdaSpeechArgs(Coqpit):
 
 class AdaSpeech(ForwardTTS):
     def __init__(self, config: Coqpit, speaker_manager: SpeakerManager = None):
-        super().__init__(config)
-
+        super().__init__(config, speaker_manager)
         self.speaker_manager = speaker_manager
         self.init_multispeaker(config)
 
@@ -292,6 +292,8 @@ class AdaSpeech(ForwardTTS):
         # print('utterance_vec:        {}'.format(utterance_vec.size()))
         o_en = o_en + utterance_vec
 
+        o_en = o_en + g
+
         # duration predictor pass
         if self.args.detach_duration_predictor:
             o_dr_log = self.duration_predictor(o_en.detach(), x_mask)
@@ -352,13 +354,15 @@ class AdaSpeech(ForwardTTS):
         # phoneme predictor pass
         # predictor was trained from output of encoder
         o_phn_pred = self.phoneme_level_predictor(o_en)
-        print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
-        print('o_en size:            {}'.format(o_en.size()))
+        # print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
+        # print('o_en size:            {}'.format(o_en.size()))
         o_en = o_en + o_phn_pred.transpose(1, 2)
 
         # utterance encoder pass
         utterance_vec = self.utterance_encoder(y)
         o_en = o_en + utterance_vec
+
+        o_en = o_en + g
 
         # duration predictor pass
         o_dr_log = self.duration_predictor(o_en, x_mask)
@@ -482,15 +486,8 @@ class AdaSpeech(ForwardTTS):
         test_audios = {}
         test_figures = {}
         test_sentences = self.config.test_sentences
-        print(test_sentences)
-        testvar = self._get_random_speakerfile()
-        print(testvar)
-        # TODO: This isn't a sustainable solution (if it works at all)
-        style_wav = os.path.abspath(testvar)
-        style_mel = torch.FloatTensor(ap.melspectrogram(
-            ap.load_wav(style_wav, sr=ap.sample_rate))).unsqueeze(0)
-        style_mel_in = style_mel.cuda()
         aux_inputs = self._get_test_aux_input()
+        style_wav = self._get_random_speakerfile(aux_inputs["speaker_id"])
         for idx, sen in enumerate(test_sentences):
             outputs_dict = synthesis(
                 self,
@@ -515,7 +512,6 @@ class AdaSpeech(ForwardTTS):
         return test_figures, test_audios
 
     def _set_utterance_input(self, aux_input: Dict):
-        print(" | > Setting utterance input.")
         style_mel = aux_input.get("style_mel", None)
         return style_mel
 
@@ -538,12 +534,18 @@ class AdaSpeech(ForwardTTS):
         }
         return aux_inputs
 
-    def _get_random_speakerfile(traindir: str):
-        print(' | > Getting random speaker file.')
-        files = os.listdir(
-            '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs')
-        # print(files)
-        return '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1/wavs/' + random.choice(files)
+    # TODO: This needs to be made more generic
+    def _get_random_speakerfile(self, speaker_id = None):
+        if speaker_id is not None: # LibriTTS case
+            speaker_name = list(self.speaker_manager.speaker_ids.keys())[speaker_id[0]][5:]
+            print(f' | > Getting random speaker file for speaker id: {speaker_name}')
+            filedir = '/home/pdavlin/school/TTS/recipes/libritts/LibriTTS/train-clean-100/' + speaker_name
+        else:
+            filedir = '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1'
+
+        wavs = glob(f"{filedir}/**/*.wav", recursive=True)
+        print(random.choice(wavs))
+        return os.path.abspath(random.choice(wavs))
 
     def get_criterion(self):
         from TTS.tts.layers.losses import ForwardTTSLoss  # pylint: disable=import-outside-toplevel
