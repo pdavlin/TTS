@@ -9,7 +9,7 @@ from torch import nn
 from torch.cuda.amp.autocast_mode import autocast
 
 
-from TTS.tts.layers.feed_forward.acoustic_encoder import PhonemeLevelEncoder, UtteranceEncoder
+from TTS.tts.layers.feed_forward.acoustic_encoder import PhonemeLevelEncoder, PhonemeLevelPredictor, UtteranceEncoder
 from TTS.tts.layers.feed_forward.decoder import Decoder
 from TTS.tts.layers.feed_forward.encoder import Encoder
 from TTS.tts.layers.generic.aligner import AlignmentNetwork
@@ -152,8 +152,6 @@ class AdaSpeechArgs(Coqpit):
     d_vector_file: str = None
     predictor_train_epoch: int = 400
 
-    stored_average_mel = None
-    stored_phoneme_pred = None
     use_adaspeech = True
 
 
@@ -272,19 +270,25 @@ class AdaSpeech(ForwardTTS):
         avg_pitch = None
 
         # AdaSpeech
-
+        # o_en: [Batch, Channels, Time] -> [32, n, Time]
         avg_mel = average_mel_over_duration(
-            y.transpose(1, 2), dr).transpose(1, 2)
-        self.stored_average_mel = avg_mel
+            y.transpose(1, 2), dr).transpose(1, 2)  # avg_mel: [Batch, Channels , Mels] -> [32, n, 80]
 
+        # print('avg_mel:              {}'.format(avg_mel.size()))
+
+        # with torch.no_grad():
         o_phn = self.phoneme_level_encoder(
-            avg_mel.transpose(1, 2)).transpose(1, 2)
+            avg_mel.transpose(1, 2)).transpose(1, 2)  # o_phn: [Batch, Channels , Time]
+        o_phn_pred = self.phoneme_level_predictor(
+            # o_phn.detach(), x_mask)  # o_phn_pred: [32, n, Time]
+            o_en.detach()).transpose(1, 2)  # o_phn_pred: [32, n, Time]
+
         o_en = o_en + o_phn
-        o_phn_pred = self.phoneme_level_predictor(o_en.detach()).transpose(1,2)
 
         # Utterance encoder pass
         # print('---adaspeech---')
-        utterance_vec = self.utterance_encoder(y.transpose(1, 2))
+        utterance_vec = self.utterance_encoder(
+            y.transpose(1, 2))  # utterance_vec: [32, n, 1]
         # print('utterance_vec:        {}'.format(utterance_vec.size()))
         o_en = o_en + utterance_vec
 
@@ -296,25 +300,6 @@ class AdaSpeech(ForwardTTS):
         o_dr = torch.clamp(torch.exp(o_dr_log) - 1, 0, self.max_duration)
         # generate attn mask from predicted durations
         o_attn = self.generate_attn(o_dr.squeeze(1), x_mask)
-        # # aligner
-        # o_alignment_dur = None
-        # alignment_soft = None
-        # alignment_logprob = None
-        # alignment_mas = None
-        # if self.use_aligner:
-        #     o_alignment_dur, alignment_soft, alignment_logprob, alignment_mas = self._forward_aligner(
-        #         x_emb, y, x_mask, y_mask
-        #     )
-        #     alignment_soft = alignment_soft.transpose(1, 2)
-        #     alignment_mas = alignment_mas.transpose(1, 2)
-        #     dr = o_alignment_dur
-        # # pitch predictor pass
-        # o_pitch = None
-        # avg_pitch = None
-
-        # print('step count:           {}'.format(self.));
-
-
 
         # decoder pass
         o_de, attn = self._forward_decoder(
@@ -361,14 +346,15 @@ class AdaSpeech(ForwardTTS):
         o_en, x_mask, g, _ = self._forward_encoder(x, x_mask, g)
 
         # AdaSpeech
-        
+        # Get mels from passed random audio clip
         y = self._set_utterance_input(aux_input)
 
         # phoneme predictor pass
+        # predictor was trained from output of encoder
         o_phn_pred = self.phoneme_level_predictor(o_en)
         print('o_phn_pred size:      {}'.format(o_phn_pred.size()))
         print('o_en size:            {}'.format(o_en.size()))
-        o_en = o_en + o_phn_pred.transpose(1,2)
+        o_en = o_en + o_phn_pred.transpose(1, 2)
 
         # utterance encoder pass
         utterance_vec = self.utterance_encoder(y)
@@ -381,15 +367,13 @@ class AdaSpeech(ForwardTTS):
         # pitch predictor pass
         o_pitch = None  # TODO: How do I safely delete this?
 
-
-
         # decoder pass
         o_de, attn = self._forward_decoder(
             o_en, o_dr, x_mask, y_lengths, g=None)
         outputs = {
             "model_outputs": o_de,
             "alignments": attn,
-            "pitch": o_pitch, # TODO: How do I safely delete this?
+            "pitch": o_pitch,  # TODO: How do I safely delete this?
             "durations_log": o_dr_log,
         }
         return outputs

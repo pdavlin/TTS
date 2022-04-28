@@ -15,24 +15,24 @@ class UtteranceEncoder(nn.Module):
         super(UtteranceEncoder, self).__init__()
         self.conv = torch.nn.Sequential(
             torch.nn.Conv1d(
-                idim, # number of mels, 80
-                n_chans, # hidden channels, (args.hidden_channels)
-                kernel_size, # 5
-                stride=stride, # 3
-                padding=(kernel_size - 1) // 2, # 2
+                idim,  # number of mels, 80
+                n_chans,  # hidden channels, (args.hidden_channels)
+                kernel_size,  # 5
+                stride=stride,  # 3
+                padding=(kernel_size - 1) // 2,  # 2
             ),
             torch.nn.ReLU(),
             LayerNorm(n_chans),
             torch.nn.Dropout(dropout_rate),
             torch.nn.Conv1d(
-                n_chans, # hidden channels, (args.hidden_channels)
-                n_chans, # hidden channels, (args.hidden_channels)
-                kernel_size, # 5
-                stride=stride, # 3
-                padding=(kernel_size - 1) // 2, # 2
+                n_chans,  # hidden channels, (args.hidden_channels)
+                n_chans,  # hidden channels, (args.hidden_channels)
+                kernel_size,  # 5
+                stride=stride,  # 3
+                padding=(kernel_size - 1) // 2,  # 2
             ),
             torch.nn.ReLU(),
-            LayerNorm(n_chans), 
+            LayerNorm(n_chans),
             torch.nn.Dropout(dropout_rate),
         )
 
@@ -80,7 +80,8 @@ class PhonemeLevelEncoder(nn.Module):
             LayerNorm(n_chans),
             torch.nn.Dropout(dropout_rate),
         )
-        self.linear = torch.nn.Linear(n_chans, n_chans) # needs to output same number of channels as input
+        # needs to output same number of channels as input
+        self.linear = torch.nn.Linear(n_chans, n_chans)
 
     def forward(self,
                 tensor: torch.Tensor,

@@ -233,11 +233,6 @@ class ForwardTTS(BaseTTS):
             self.aligner = AlignmentNetwork(
                 in_query_channels=self.args.out_channels, in_key_channels=self.args.hidden_channels
             )
-        # self.utterance_encoder = UtteranceEncoder(idim=config.audio.num_mels, n_chans=self.args.hidden_channels)
-        # self.phoneme_level_encoder = PhonemeLevelEncoder(idim=config.audio.num_mels, n_chans=self.args.hidden_channels)
-        # self.phoneme_level_predictor = PhonemeLevelEncoder(idim=config.audio.num_mels)
-        # self.phoneme_embed = torch.nn.Linear(self.args.hidden_channels, config.audio.num_mels)
-        # self.acoustic_criterion = AcousticPredictorLoss()
 
     def init_multispeaker(self, config: Coqpit):
         """Init for multi-speaker training.
@@ -533,15 +528,6 @@ class ForwardTTS(BaseTTS):
         # encoder pass
         o_en, x_mask, g, x_emb = self._forward_encoder(x, x_mask, g)
 
-        # AdaSpeech
-
-        # Utterance encoder pass
-        # if self.args.use_adaspeech:
-        #     print('---adaspeech---')
-        #     utterance_vec = self.utterance_encoder(y.transpose(1,2))
-        #     print('utterance_vec:        {}'.format(utterance_vec.size()))
-        #     o_en = o_en + utterance_vec
-
         # duration predictor pass
         if self.args.detach_duration_predictor:
             o_dr_log = self.duration_predictor(o_en.detach(), x_mask)
@@ -567,24 +553,7 @@ class ForwardTTS(BaseTTS):
         avg_pitch = None
         if self.args.use_pitch:
             o_pitch_emb, o_pitch, avg_pitch = self._forward_pitch_predictor(o_en, x_mask, pitch, dr)
-            print('pitch emb size: {}'.format(o_pitch_emb.size()))
             o_en = o_en + o_pitch_emb
-
-        # First 40,000 steps: only encode TODO: add a conditional here
-        # if self.args.use_adaspeech:
-        #     # print('step count:           {}'.format(self.));
-        #     print('before avg func')
-        #     avg_mel = average_mel_over_duration(y.transpose(1,2), dr).transpose(1,2)
-        #     print('after avg func')
-        #     print('y size:               {}'.format(y.size()))
-        #     print('avg mel size:         {}'.format(avg_mel.size()))
-        #     o_phn = self.phoneme_level_encoder(avg_mel.transpose(1,2)).transpose(1,2)
-        #     print('o_en size:            {}'.format(o_en.size()))
-        #     print('o_phn size:           {}'.format(o_phn.size()))
-        #     # o_phn_emb = self.phoneme_embed(o_phn)
-        #     # print('o_phn_emb size:       {}'.format(o_phn_emb.size()))
-        #     o_en = o_en + o_phn
-        #     print('---end adaspeech---')
 
         # decoder pass
         o_de, attn = self._forward_decoder(
@@ -625,13 +594,7 @@ class ForwardTTS(BaseTTS):
         x_mask = torch.unsqueeze(sequence_mask(x_lengths, x.shape[1]), 1).to(x.dtype).float()
         # encoder pass
         o_en, x_mask, g, _ = self._forward_encoder(x, x_mask, g)
-        # utterance encoder pass
-        # if self.args.use_adaspeech:
-        #     # print('---adaspeech---')
-        #     utterance_vec = self.utterance_encoder(y.transpose(1,2))
-        #     # print('utterance_vec:        {}'.format(utterance_vec.size()))
-        #     o_en = o_en + utterance_vec
-        # duration predictor pass
+
         o_dr_log = self.duration_predictor(o_en, x_mask)
         o_dr = self.format_durations(o_dr_log, x_mask).squeeze(1)
         y_lengths = o_dr.sum(1)
@@ -641,19 +604,6 @@ class ForwardTTS(BaseTTS):
             o_pitch_emb, o_pitch = self._forward_pitch_predictor(o_en, x_mask)
             o_en = o_en + o_pitch_emb
 
-        # if self.args.use_adaspeech:
-        #     print('before avg func')
-        #     avg_mel = average_mel_over_duration(y.transpose(1,2), dr).transpose(1,2)
-        #     print('after avg func')
-        #     print('y size:               {}'.format(y.size()))
-        #     print('avg mel size:         {}'.format(avg_mel.size()))
-        #     o_phn = self.phoneme_level_encoder(avg_mel.transpose(1,2)).transpose(1,2)
-        #     print('o_en size:            {}'.format(o_en.size()))
-        #     print('o_phn size:           {}'.format(o_phn.size()))
-        #     # o_phn_emb = self.phoneme_embed(o_phn)
-        #     # print('o_phn_emb size:       {}'.format(o_phn_emb.size()))
-        #     o_en = o_en + o_phn
-        #     print('---end adaspeech---')
         # decoder pass
         o_de, attn = self._forward_decoder(o_en, o_dr, x_mask, y_lengths, g=None)
         outputs = {
