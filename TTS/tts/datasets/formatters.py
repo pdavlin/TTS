@@ -200,12 +200,11 @@ def common_voice(root_path, meta_file):
 def libri_tts(root_path, meta_files=None):
     """https://ai.google/tools/datasets/libri-tts/"""
     items = []
-    if meta_files is None:
+    if meta_files is None or meta_files == '':
         meta_files = glob(f"{root_path}/**/*trans.tsv", recursive=True)
     else:
         if isinstance(meta_files, str):
             meta_files = [os.path.join(root_path, meta_files)]
-
     for meta_file in meta_files:
         _meta_file = os.path.basename(meta_file).split(".")[0]
         with open(meta_file, "r", encoding="utf-8") as ttf:
