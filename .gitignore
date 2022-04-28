@@ -163,6 +163,7 @@ internal/*
 *_phoneme.npy
 wandb
 
+recipes/libritts/LibriTTS/*
 recipes/ljspeech/ada_speech/ada*
 recipes/ljspeech/fast_pitch/fast*
 recipes/ljspeech/fast_speech/fast*
