@@ -269,30 +269,31 @@ class AdaSpeech(ForwardTTS):
         o_pitch = None
         avg_pitch = None
 
-        # AdaSpeech
-        # o_en: [Batch, Channels, Time] -> [32, n, Time]
+        # -- AdaSpeech Additions --
+        # o_en: [Batch, Channels, Time] -> [Batch, Channels, Time]
         avg_mel = average_mel_over_duration(
             y.transpose(1, 2), dr).transpose(1, 2)  # avg_mel: [Batch, Channels , Mels] -> [32, n, 80]
 
         # print('avg_mel:              {}'.format(avg_mel.size()))
 
-        # with torch.no_grad():
         o_phn = self.phoneme_level_encoder(
-            avg_mel.transpose(1, 2)).transpose(1, 2)  # o_phn: [Batch, Channels , Time]
+            avg_mel.transpose(1, 2)).transpose(1, 2)  # o_phn: [Batch, Channels, Time]
         o_phn_pred = self.phoneme_level_predictor(
-            # o_phn.detach(), x_mask)  # o_phn_pred: [32, n, Time]
-            o_en.detach()).transpose(1, 2)  # o_phn_pred: [32, n, Time]
+            # o_phn.detach(), x_mask)  # o_phn_pred: [B, C, T]
+            o_en.detach()).transpose(1, 2)  # o_phn_pred: [B, C, T]
 
         o_en = o_en + o_phn
 
         # Utterance encoder pass
-        # print('---adaspeech---')
         utterance_vec = self.utterance_encoder(
             y.transpose(1, 2))  # utterance_vec: [32, n, 1]
         # print('utterance_vec:        {}'.format(utterance_vec.size()))
         o_en = o_en + utterance_vec
 
+        # add speaker embedding to the encoder output
         o_en = o_en + g
+
+        # -- End AdaSpeech Additions --
 
         # duration predictor pass
         if self.args.detach_duration_predictor:
@@ -362,7 +363,7 @@ class AdaSpeech(ForwardTTS):
         utterance_vec = self.utterance_encoder(y)
         o_en = o_en + utterance_vec
 
-        #add speaker embedding to the encoder output
+        # add speaker embedding to the encoder output
         o_en = o_en + g
 
         # duration predictor pass
