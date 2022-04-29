@@ -362,6 +362,7 @@ class AdaSpeech(ForwardTTS):
         utterance_vec = self.utterance_encoder(y)
         o_en = o_en + utterance_vec
 
+        #add speaker embedding to the encoder output
         o_en = o_en + g
 
         # duration predictor pass
@@ -486,9 +487,9 @@ class AdaSpeech(ForwardTTS):
         test_audios = {}
         test_figures = {}
         test_sentences = self.config.test_sentences
-        aux_inputs = self._get_test_aux_input()
-        style_wav = self._get_random_speakerfile(aux_inputs["speaker_id"])
         for idx, sen in enumerate(test_sentences):
+            aux_inputs = self._get_test_aux_input()
+            style_wav = self._get_random_speakerfile(aux_inputs["speaker_id"])
             outputs_dict = synthesis(
                 self,
                 sen,
