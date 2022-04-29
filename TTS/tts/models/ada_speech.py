@@ -10,8 +10,8 @@ from torch import nn
 from torch.cuda.amp.autocast_mode import autocast
 
 
-from TTS.tts.layers.feed_forward.acoustic_encoder import PhonemeLevelEncoder, UtteranceEncoder
-from TTS.tts.layers.feed_forward.decoder import Decoder
+from TTS.tts.layers.ada_speech.acoustic_encoder import PhonemeLevelEncoder, UtteranceEncoder
+from TTS.tts.layers.ada_speech.decoder import AdaDecoder
 from TTS.tts.layers.feed_forward.encoder import Encoder
 from TTS.tts.layers.generic.aligner import AlignmentNetwork
 from TTS.tts.layers.generic.pos_encoding import PositionalEncoding
@@ -187,7 +187,7 @@ class AdaSpeech(ForwardTTS):
         if self.args.positional_encoding:
             self.pos_encoder = PositionalEncoding(self.args.hidden_channels)
 
-        self.decoder = Decoder(
+        self.decoder = AdaDecoder(
             self.args.out_channels,
             self.args.hidden_channels,
             self.args.decoder_type,
@@ -270,6 +270,13 @@ class AdaSpeech(ForwardTTS):
         avg_pitch = None
 
         # -- AdaSpeech Additions --
+
+        # Utterance encoder pass
+        utterance_vec = self.utterance_encoder(
+            y.transpose(1, 2))  # utterance_vec: [32, n, 1]
+        # print('utterance_vec:        {}'.format(utterance_vec.size()))
+        o_en = o_en + utterance_vec
+
         # o_en: [Batch, Channels, Time] -> [Batch, Channels, Time]
         avg_mel = average_mel_over_duration(
             y.transpose(1, 2), dr).transpose(1, 2)  # avg_mel: [Batch, Channels , Mels] -> [32, n, 80]
@@ -283,12 +290,6 @@ class AdaSpeech(ForwardTTS):
             o_en.detach()).transpose(1, 2)  # o_phn_pred: [B, C, T]
 
         o_en = o_en + o_phn
-
-        # Utterance encoder pass
-        utterance_vec = self.utterance_encoder(
-            y.transpose(1, 2))  # utterance_vec: [32, n, 1]
-        # print('utterance_vec:        {}'.format(utterance_vec.size()))
-        o_en = o_en + utterance_vec
 
         # add speaker embedding to the encoder output
         o_en = o_en + g
@@ -348,9 +349,13 @@ class AdaSpeech(ForwardTTS):
         # encoder pass
         o_en, x_mask, g, _ = self._forward_encoder(x, x_mask, g)
 
-        # AdaSpeech
+        # -- AdaSpeech Additions --
         # Get mels from passed random audio clip
         y = self._set_utterance_input(aux_input)
+
+        # utterance encoder pass
+        utterance_vec = self.utterance_encoder(y)
+        o_en = o_en + utterance_vec
 
         # phoneme predictor pass
         # predictor was trained from output of encoder
@@ -359,12 +364,10 @@ class AdaSpeech(ForwardTTS):
         # print('o_en size:            {}'.format(o_en.size()))
         o_en = o_en + o_phn_pred.transpose(1, 2)
 
-        # utterance encoder pass
-        utterance_vec = self.utterance_encoder(y)
-        o_en = o_en + utterance_vec
-
         # add speaker embedding to the encoder output
         o_en = o_en + g
+
+        # -- End AdaSpeech Additions --
 
         # duration predictor pass
         o_dr_log = self.duration_predictor(o_en, x_mask)
@@ -489,7 +492,7 @@ class AdaSpeech(ForwardTTS):
         test_figures = {}
         test_sentences = self.config.test_sentences
         for idx, sen in enumerate(test_sentences):
-            aux_inputs = self._get_test_aux_input()
+            aux_inputs = self._get_test_aux_input() # Moved this into test sentence loop to get more speakers for testing
             style_wav = self._get_random_speakerfile(aux_inputs["speaker_id"])
             outputs_dict = synthesis(
                 self,
@@ -536,7 +539,7 @@ class AdaSpeech(ForwardTTS):
         }
         return aux_inputs
 
-    # TODO: This needs to be made more generic
+    # TODO: This needs to be made more generic--only works for LibriTTS and LJSpeech
     def _get_random_speakerfile(self, speaker_id = None):
         if speaker_id is not None: # LibriTTS case
             speaker_name = list(self.speaker_manager.speaker_ids.keys())[speaker_id[0]][5:]

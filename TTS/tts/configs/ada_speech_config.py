@@ -153,7 +153,8 @@ class AdaSpeechConfig(BaseTTSConfig):
             "I'm sorry Dave. I'm afraid I can't do that.",
             "This cake is great. It's so delicious and moist.",
             "Prior to November 22, 1963.",
-            "Casey is the original dirty bag boy."
+            "I can't eat without washing my hands first.",
+            "Thank you for attending my capstone presentation."
         ]
     )
 
