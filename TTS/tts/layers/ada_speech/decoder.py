@@ -86,11 +86,9 @@ class AdaTransformer(nn.Module):
         self.conv2 = nn.Conv1d(hidden_channels_ffn, in_out_channels,
                                kernel_size=kernel_size_fft, padding=padding)
 
+        # AdaSpeech Conditional LayerNormalization
         self.norm1 = ConditionalLayerNorm(in_out_channels)
         self.norm2 = ConditionalLayerNorm(in_out_channels)
-
-        # self.norm1 = nn.LayerNorm(in_out_channels)
-        # self.norm2 = nn.LayerNorm(in_out_channels)
 
         self.dropout1 = nn.Dropout(dropout_p)
         self.dropout2 = nn.Dropout(dropout_p)
@@ -98,14 +96,13 @@ class AdaTransformer(nn.Module):
     def forward(self, src, src_mask=None, src_key_padding_mask=None, g=None, debug=False):
         if debug == True:
             print('AdaTransformer forward')
-            print(f'src:                  {src.size()}')
+            print(f'src:        {src.size()}')
             if g is not None:
-                print(f'g:                    {g.size()}')
+                print(f'g:          {g.size()}')
         src = src.permute(2, 0, 1)
         src2, enc_align = self.self_attn(
             src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
         src = src + self.dropout1(src2)
-        # print('calling self.norm1')
         src = self.norm1(src + src2, g=g, debug=debug)
         # T x B x D -> B x D x T
         src = src.permute(1, 2, 0)
@@ -113,7 +110,6 @@ class AdaTransformer(nn.Module):
         src2 = self.dropout2(src2)
         src = src + src2
         src = src.transpose(1, 2)
-        # print('calling self.norm2')
         src = self.norm2(src, g=g, transpose=True, debug=debug)
         src = src.transpose(1, 2)
         return src, enc_align
@@ -126,17 +122,16 @@ class ConditionalLayerNorm(nn.Module):
         self.channels = channels
         self.eps = eps
 
+        # TODO: Could these be a single layer
         self.gamma = nn.Linear(channels, channels)
         self.beta = nn.Linear(channels, channels)
 
-        # self.gamma = nn.Parameter(torch.ones(1, channels, 1) * 0.1)
-        # self.beta = nn.Parameter(torch.zeros(1, channels, 1))
 
     def forward(self, x, g=None, transpose=False, debug=False):
         if debug == True:
             print('ConditionalLayerNorm forward')
-            print(f'x:          {multiplier.size()}')
-            print(f'g:          {adder.size()}')
+            print(f'x:          {x.size()}')
+            print(f'g:          {g.size()}')
         mean = torch.mean(x, 1, keepdim=True)
         variance = torch.mean((x - mean) ** 2, 1, keepdim=True)
         x = (x - mean) * torch.rsqrt(variance + self.eps)
@@ -145,12 +140,14 @@ class ConditionalLayerNorm(nn.Module):
                 0, 1)
             adder = self.beta(g.transpose(1, 2)).transpose(
                 0, 1)
-            if transpose == True:
+            # have to transpose in second layer because the channels in
+            # `x` are in a different order
+            if transpose == True: 
                 multiplier = multiplier.permute(1, 0, 2)
                 adder = adder.permute(1, 0, 2)
-            x = x * multiplier + adder
             if debug == True:
                 print(f'multiplier: {multiplier.size()}')
                 print(f'adder:      {adder.size()}')
+            x = x * multiplier + adder
 
         return x
