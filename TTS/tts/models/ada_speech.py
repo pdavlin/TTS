@@ -385,7 +385,7 @@ class AdaSpeech(ForwardTTS):
 
         # decoder pass
         o_de, attn = self._forward_decoder(
-            o_en, o_dr, x_mask, y_lengths, g=g)
+            o_en, o_dr, x_mask, y_lengths, g=g,debug=True)
         outputs = {
             "model_outputs": o_de,
             "alignments": attn,
@@ -393,6 +393,43 @@ class AdaSpeech(ForwardTTS):
             "durations_log": o_dr_log,
         }
         return outputs
+
+    def _forward_decoder(
+        self,
+        o_en: torch.FloatTensor,
+        dr: torch.IntTensor,
+        x_mask: torch.FloatTensor,
+        y_lengths: torch.IntTensor,
+        g: torch.FloatTensor,
+        debug = False
+    ) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+        """Decoding forward pass.
+
+        1. Compute the decoder output mask
+        2. Expand encoder output with the durations.
+        3. Apply position encoding.
+        4. Add speaker embeddings if multi-speaker mode.
+        5. Run the decoder.
+
+        Args:
+            o_en (torch.FloatTensor): Encoder output.
+            dr (torch.IntTensor): Ground truth durations or alignment network durations.
+            x_mask (torch.IntTensor): Input sequence mask.
+            y_lengths (torch.IntTensor): Output sequence lengths.
+            g (torch.FloatTensor): Conditioning vectors. In general speaker embeddings.
+
+        Returns:
+            Tuple[torch.FloatTensor, torch.FloatTensor]: Decoder output, attention map from durations.
+        """
+        y_mask = torch.unsqueeze(sequence_mask(y_lengths, None), 1).to(o_en.dtype)
+        # expand o_en with durations
+        o_en_ex, attn = self.expand_encoder_outputs(o_en, dr, x_mask, y_mask)
+        # positional encoding
+        if hasattr(self, "pos_encoder"):
+            o_en_ex = self.pos_encoder(o_en_ex, y_mask)
+        # decoder pass
+        o_de = self.decoder(o_en_ex, y_mask, g=g, debug=debug)
+        return o_de.transpose(1, 2), attn.transpose(1, 2)
 
     def train_step(self, batch: dict, criterion: nn.Module):
         text_input = batch["text_input"]
