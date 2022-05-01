@@ -12,6 +12,7 @@ from torch.cuda.amp.autocast_mode import autocast
 
 from TTS.tts.layers.ada_speech.acoustic_encoder import PhonemeLevelEncoder, UtteranceEncoder
 from TTS.tts.layers.ada_speech.decoder import AdaDecoder
+from TTS.tts.layers.feed_forward.decoder import Decoder
 from TTS.tts.layers.feed_forward.encoder import Encoder
 from TTS.tts.layers.generic.aligner import AlignmentNetwork
 from TTS.tts.layers.generic.pos_encoding import PositionalEncoding
@@ -188,11 +189,17 @@ class AdaSpeech(ForwardTTS):
             self.pos_encoder = PositionalEncoding(self.args.hidden_channels)
 
         self.decoder = AdaDecoder(
-            self.args.out_channels,
             self.args.hidden_channels,
-            self.args.decoder_type,
+            self.args.out_channels,
             self.args.decoder_params,
         )
+
+        # self.decoder = Decoder(
+        #     self.args.out_channels,
+        #     self.args.hidden_channels,
+        #     self.args.decoder_type,
+        #     self.args.decoder_params,
+        # )
 
         self.duration_predictor = DurationPredictor(
             self.args.hidden_channels + self.embedded_speaker_dim,
@@ -307,7 +314,7 @@ class AdaSpeech(ForwardTTS):
 
         # decoder pass
         o_de, attn = self._forward_decoder(
-            o_en, dr, x_mask, y_lengths, g=None
+            o_en, dr, x_mask, y_lengths, g=g
         )  # TODO: maybe pass speaker embedding (g) too
         outputs = {
             "model_outputs": o_de,  # [B, T, C]
@@ -378,7 +385,7 @@ class AdaSpeech(ForwardTTS):
 
         # decoder pass
         o_de, attn = self._forward_decoder(
-            o_en, o_dr, x_mask, y_lengths, g=None)
+            o_en, o_dr, x_mask, y_lengths, g=g)
         outputs = {
             "model_outputs": o_de,
             "alignments": attn,
