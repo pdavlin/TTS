@@ -1,4 +1,8 @@
 import os
+import torch
+
+# torch.cuda.is_available = lambda : False
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 from TTS.config import BaseAudioConfig, BaseDatasetConfig
 from TTS.trainer import Trainer, TrainingArgs
@@ -64,11 +68,9 @@ speaker_manager = SpeakerManager()
 speaker_manager.set_speaker_ids_from_data(train_samples + eval_samples)
 config.model_args.num_speakers = speaker_manager.num_speakers
 
-print('about to initialize model')
 # init model
 model = AdaSpeech(config, speaker_manager)
 
-print('starting training')
 # init the trainer and 🚀
 trainer = Trainer(
     TrainingArgs(),

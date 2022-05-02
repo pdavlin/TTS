@@ -29,94 +29,6 @@ from TTS.tts.utils.visual import plot_alignment, plot_spectrogram
 
 @dataclass
 class AdaSpeechArgs(Coqpit):
-    """AdaSpeech Model arguments.
-
-    Args:
-
-        num_chars (int):
-            Number of characters in the vocabulary. Defaults to 100.
-
-        out_channels (int):
-            Number of output channels. Defaults to 80.
-
-        hidden_channels (int):
-            Number of base hidden channels of the model. Defaults to 512.
-
-        use_aligner (bool):
-            Whether to use aligner network to learn the text to speech alignment or use pre-computed durations.
-            If set False, durations should be computed by `TTS/bin/compute_attention_masks.py` and path to the
-            pre-computed durations must be provided to `config.datasets[0].meta_file_attn_mask`. Defaults to True.
-
-        use_pitch (bool):
-            Use pitch predictor to learn the pitch. Defaults to True.
-
-        duration_predictor_hidden_channels (int):
-            Number of hidden channels in the duration predictor. Defaults to 256.
-
-        duration_predictor_dropout_p (float):
-            Dropout rate for the duration predictor. Defaults to 0.1.
-
-        duration_predictor_kernel_size (int):
-            Kernel size of conv layers in the duration predictor. Defaults to 3.
-
-        pitch_predictor_hidden_channels (int):
-            Number of hidden channels in the pitch predictor. Defaults to 256.
-
-        pitch_predictor_dropout_p (float):
-            Dropout rate for the pitch predictor. Defaults to 0.1.
-
-        pitch_predictor_kernel_size (int):
-            Kernel size of conv layers in the pitch predictor. Defaults to 3.
-
-        pitch_embedding_kernel_size (int):
-            Kernel size of the projection layer in the pitch predictor. Defaults to 3.
-
-        positional_encoding (bool):
-            Whether to use positional encoding. Defaults to True.
-
-        positional_encoding_use_scale (bool):
-            Whether to use a learnable scale coeff in the positional encoding. Defaults to True.
-
-        length_scale (int):
-            Length scale that multiplies the predicted durations. Larger values result slower speech. Defaults to 1.0.
-
-        encoder_type (str):
-            Type of the encoder module. One of the encoders available in :class:`TTS.tts.layers.feed_forward.encoder`.
-            Defaults to `fftransformer` as in the paper.
-
-        encoder_params (dict):
-            Parameters of the encoder module. Defaults to ```{"hidden_channels_ffn": 1024, "num_heads": 1, "num_layers": 6, "dropout_p": 0.1}```
-
-        decoder_type (str):
-            Type of the decoder module. One of the decoders available in :class:`TTS.tts.layers.feed_forward.decoder`.
-            Defaults to `fftransformer` as in the paper.
-
-        decoder_params (str):
-            Parameters of the decoder module. Defaults to ```{"hidden_channels_ffn": 1024, "num_heads": 1, "num_layers": 6, "dropout_p": 0.1}```
-
-        detach_duration_predictor (bool):
-            Detach the input to the duration predictor from the earlier computation graph so that the duraiton loss
-            does not pass to the earlier layers. Defaults to True.
-
-        max_duration (int):
-            Maximum duration accepted by the model. Defaults to 75.
-
-        num_speakers (int):
-            Number of speakers for the speaker embedding layer. Defaults to 0.
-
-        speakers_file (str):
-            Path to the speaker mapping file for the Speaker Manager. Defaults to None.
-
-        speaker_embedding_channels (int):
-            Number of speaker embedding channels. Defaults to 256.
-
-        use_d_vector_file (bool):
-            Enable/Disable the use of d-vectors for multi-speaker training. Defaults to False.
-
-        d_vector_dim (int):
-            Number of d-vector channels. Defaults to 0.
-
-    """
 
     num_chars: int = None
     out_channels: int = 80
@@ -193,13 +105,6 @@ class AdaSpeech(ForwardTTS):
             self.args.out_channels,
             self.args.decoder_params,
         )
-
-        # self.decoder = Decoder(
-        #     self.args.out_channels,
-        #     self.args.hidden_channels,
-        #     self.args.decoder_type,
-        #     self.args.decoder_params,
-        # )
 
         self.duration_predictor = DurationPredictor(
             self.args.hidden_channels + self.embedded_speaker_dim,
@@ -281,14 +186,13 @@ class AdaSpeech(ForwardTTS):
         # Utterance encoder pass
         utterance_vec = self.utterance_encoder(
             y.transpose(1, 2))  # utterance_vec: [32, n, 1]
-        # print('utterance_vec:        {}'.format(utterance_vec.size()))
+
         o_en = o_en + utterance_vec
 
         # o_en: [Batch, Channels, Time] -> [Batch, Channels, Time]
         avg_mel = average_mel_over_duration(
             y.transpose(1, 2), dr).transpose(1, 2)  # avg_mel: [Batch, Channels , Mels] -> [32, n, 80]
 
-        # print('avg_mel:              {}'.format(avg_mel.size()))
 
         o_phn = self.phoneme_level_encoder(
             avg_mel.transpose(1, 2)).transpose(1, 2)  # o_phn: [Batch, Channels, Time]
@@ -314,8 +218,8 @@ class AdaSpeech(ForwardTTS):
 
         # decoder pass
         o_de, attn = self._forward_decoder(
-            o_en, dr, x_mask, y_lengths, g=g
-        )  # TODO: maybe pass speaker embedding (g) too
+            o_en, dr, x_mask, y_lengths, g=g, debug=False
+        )
         outputs = {
             "model_outputs": o_de,  # [B, T, C]
             "durations_log": o_dr_log.squeeze(1),  # [B, T]
@@ -385,7 +289,7 @@ class AdaSpeech(ForwardTTS):
 
         # decoder pass
         o_de, attn = self._forward_decoder(
-            o_en, o_dr, x_mask, y_lengths, g=g,debug=True)
+            o_en, o_dr, x_mask, y_lengths, g=g, debug=True)
         outputs = {
             "model_outputs": o_de,
             "alignments": attn,
@@ -401,7 +305,7 @@ class AdaSpeech(ForwardTTS):
         x_mask: torch.FloatTensor,
         y_lengths: torch.IntTensor,
         g: torch.FloatTensor,
-        debug = False
+        debug=False
     ) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
         """Decoding forward pass.
 
@@ -421,7 +325,8 @@ class AdaSpeech(ForwardTTS):
         Returns:
             Tuple[torch.FloatTensor, torch.FloatTensor]: Decoder output, attention map from durations.
         """
-        y_mask = torch.unsqueeze(sequence_mask(y_lengths, None), 1).to(o_en.dtype)
+        y_mask = torch.unsqueeze(sequence_mask(
+            y_lengths, None), 1).to(o_en.dtype)
         # expand o_en with durations
         o_en_ex, attn = self.expand_encoder_outputs(o_en, dr, x_mask, y_mask)
         # positional encoding
@@ -536,7 +441,8 @@ class AdaSpeech(ForwardTTS):
         test_figures = {}
         test_sentences = self.config.test_sentences
         for idx, sen in enumerate(test_sentences):
-            aux_inputs = self._get_test_aux_input() # Moved this into test sentence loop to get more speakers for testing
+            # Moved this into test sentence loop to get more speakers for testing
+            aux_inputs = self._get_test_aux_input()
             style_wav = self._get_random_speakerfile(aux_inputs["speaker_id"])
             outputs_dict = synthesis(
                 self,
@@ -584,16 +490,17 @@ class AdaSpeech(ForwardTTS):
         return aux_inputs
 
     # TODO: This needs to be made more generic--only works for LibriTTS and LJSpeech
-    def _get_random_speakerfile(self, speaker_id = None):
-        if speaker_id is not None: # LibriTTS case
-            speaker_name = list(self.speaker_manager.speaker_ids.keys())[speaker_id[0]][5:]
-            print(f' | > Getting random speaker file for speaker id: {speaker_name}')
+    def _get_random_speakerfile(self, speaker_id=None):
+        if speaker_id is not None:  # LibriTTS case
+            speaker_name = list(self.speaker_manager.speaker_ids.keys())[
+                speaker_id[0]][5:]
+            print(
+                f' | > Getting random speaker file for speaker id: {speaker_name}')
             filedir = '/home/pdavlin/school/TTS/recipes/libritts/LibriTTS/train-clean-100/' + speaker_name
         else:
             filedir = '/home/pdavlin/school/TTS/recipes/ljspeech/LJSpeech-1.1'
 
         wavs = glob(f"{filedir}/**/*.wav", recursive=True)
-        print(random.choice(wavs))
         return os.path.abspath(random.choice(wavs))
 
     def get_criterion(self):

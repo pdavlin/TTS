@@ -681,7 +681,6 @@ class ForwardTTSLoss(nn.Module):
 
     def __init__(self, c):
         super().__init__()
-        print('initializing ForwardTTSLoss')
         if c.spec_loss_type == "mse":
             self.spec_loss = MSELossMasked(False)
         elif c.spec_loss_type == "l1":

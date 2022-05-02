@@ -28,10 +28,10 @@ class AdaDecoder(nn.Module):
 
     def forward(self, x, x_mask=None, g=None, debug=False):  # pylint: disable=unused-argument
         if debug == True:
-            print('in AdaDecoder')
-            print(f'x:        {x.size()}')
-            print(f'x_mask:   {x_mask.size()}')
-            print(f'g:        {g.size()}')
+            print(' | > in AdaDecoder')
+            print(f'   | > x:        {x.size()}')
+            print(f'   | > x_mask:   {x_mask.size()}')
+            print(f'   | > g:        {g.size()}')
         x_mask = 1 if x_mask is None else x_mask
         o = self.transformer_block(x, g=g, debug=debug) * x_mask
         o = self.postnet(o) * x_mask
@@ -95,21 +95,21 @@ class AdaTransformer(nn.Module):
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None, g=None, debug=False):
         if debug == True:
-            print('AdaTransformer forward')
-            print(f'src:        {src.size()}')
+            print(' | > AdaTransformer forward')
+            print(f'   | > src:        {src.size()}') # [B, C, T]
             if g is not None:
-                print(f'g:          {g.size()}')
-        src = src.permute(2, 0, 1)
-        src2, enc_align = self.self_attn(
-            src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
-        src = src + self.dropout1(src2)
-        src = self.norm1(src + src2, g=g, debug=debug)
-        # T x B x D -> B x D x T
-        src = src.permute(1, 2, 0)
+                print(f'   | > g:          {g.size()}')
+        src = src.permute(2, 0, 1) # [T, B, C]
+        src2, enc_align = self.self_attn(src, src, src) # [T, B, C]
+        src = src + self.dropout1(src2) # [T, B, C]
+        if debug: print(' | > ConditionalLayerNorm 1')
+        src = self.norm1(src + src2, g=g, debug=debug) # [T, B, C]
+        src = src.permute(1, 2, 0) # [B, C, T]
         src2 = self.conv2(nn.functional.relu(self.conv1(src)))
         src2 = self.dropout2(src2)
         src = src + src2
         src = src.transpose(1, 2)
+        if debug: print(' | > ConditionalLayerNorm 2')
         src = self.norm2(src, g=g, transpose=True, debug=debug)
         src = src.transpose(1, 2)
         return src, enc_align
@@ -126,12 +126,11 @@ class ConditionalLayerNorm(nn.Module):
         self.gamma = nn.Linear(channels, channels)
         self.beta = nn.Linear(channels, channels)
 
-
     def forward(self, x, g=None, transpose=False, debug=False):
         if debug == True:
-            print('ConditionalLayerNorm forward')
-            print(f'x:          {x.size()}')
-            print(f'g:          {g.size()}')
+            print(' | > ConditionalLayerNorm forward')
+            print(f'   | > x:          {x.size()}')
+            print(f'   | > g:          {g.size()}')
         mean = torch.mean(x, 1, keepdim=True)
         variance = torch.mean((x - mean) ** 2, 1, keepdim=True)
         x = (x - mean) * torch.rsqrt(variance + self.eps)
@@ -140,14 +139,14 @@ class ConditionalLayerNorm(nn.Module):
                 0, 1)
             adder = self.beta(g.transpose(1, 2)).transpose(
                 0, 1)
-            # have to transpose in second layer because the channels in
-            # `x` are in a different order
-            if transpose == True: 
+            # Channels in first layer: [T, B, C]
+            # Channels in second layer: [B, C, T]
+            if transpose == True:
                 multiplier = multiplier.permute(1, 0, 2)
                 adder = adder.permute(1, 0, 2)
             if debug == True:
-                print(f'multiplier: {multiplier.size()}')
-                print(f'adder:      {adder.size()}')
+                print(f'   | > multiplier: {multiplier.size()}')
+                print(f'   | > adder:      {adder.size()}')
             x = x * multiplier + adder
 
         return x
