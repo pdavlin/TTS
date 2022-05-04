@@ -100,9 +100,10 @@ class AdaSpeech(ForwardTTS):
         if self.args.positional_encoding:
             self.pos_encoder = PositionalEncoding(self.args.hidden_channels)
 
-        self.decoder = AdaDecoder(
-            self.args.hidden_channels,
+        self.decoder = Decoder(
             self.args.out_channels,
+            self.args.hidden_channels,
+            self.args.decoder_type,
             self.args.decoder_params,
         )
 
@@ -197,7 +198,6 @@ class AdaSpeech(ForwardTTS):
         o_phn = self.phoneme_level_encoder(
             avg_mel.transpose(1, 2)).transpose(1, 2)  # o_phn: [Batch, Channels, Time]
         o_phn_pred = self.phoneme_level_predictor(
-            # o_phn.detach(), x_mask)  # o_phn_pred: [B, C, T]
             o_en.detach()).transpose(1, 2)  # o_phn_pred: [B, C, T]
 
         o_en = o_en + o_phn
@@ -285,7 +285,7 @@ class AdaSpeech(ForwardTTS):
         o_dr = self.format_durations(o_dr_log, x_mask).squeeze(1)
         y_lengths = o_dr.sum(1)
         # pitch predictor pass
-        o_pitch = None  # TODO: How do I safely delete this?
+        o_pitch = None 
 
         # decoder pass
         o_de, attn = self._forward_decoder(
@@ -293,7 +293,7 @@ class AdaSpeech(ForwardTTS):
         outputs = {
             "model_outputs": o_de,
             "alignments": attn,
-            "pitch": o_pitch,  # TODO: How do I safely delete this?
+            "pitch": o_pitch,
             "durations_log": o_dr_log,
         }
         return outputs
